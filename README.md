@@ -2,7 +2,7 @@
 
 ## About
 
-This Rust program is designed to fetch job listings from Upwork based on a query and send the results to a specified
+This program is designed to fetch job listings from upwork based on a query and send the results to a specified
 email address.
 
 ## Features
@@ -22,8 +22,8 @@ email address.
 Clone the repository:
 
 ```shell
-git clone https://github.com/yourusername/upwork-job-scraper.git
-cd upwork-job-scraper
+git clone https://github.com/tyrzen/uwrss.git
+cd uwrss
 ```
 
 ## Configuration
