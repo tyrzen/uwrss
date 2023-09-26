@@ -16,7 +16,8 @@ use std::thread::sleep;
 
 use clap::Parser;
 use lettre::{Message, SmtpTransport, Transport, transport::smtp::authentication::Credentials};
-use lettre::message::header::ContentType;
+use lettre::message::header::To;
+use lettre::message::{Mailboxes, SinglePart};
 use lettre::transport::smtp::response::Response;
 use rss::{Channel, Item};
 use scraper::Html;
@@ -147,12 +148,16 @@ struct EmailSender {
 
 impl EmailSender {
     fn send_email(&self, job: &JobListing, to: &str) -> Result<Response, Box<dyn Error>> {
+        let tos: Mailboxes = to.parse()?;
+        let header: To = tos.into();
+        let from = format!("upwork rss<{}>", self.smtp_username).parse()?;
+        let body = job.description.to_owned();
+
         let email = Message::builder()
-            .from(format!("upwork rss<{}>", self.smtp_username).parse()?)
-            .to(to.parse()?)
+            .mailbox(header)
+            .from(from)
             .subject(job.title.to_owned())
-            .header(ContentType::TEXT_HTML)
-            .body(job.description.to_owned())?;
+            .singlepart(SinglePart::html(body))?;
 
         let creds = Credentials::new(self.smtp_username.to_owned(), self.smtp_password.to_owned());
 
