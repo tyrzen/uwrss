@@ -8,7 +8,7 @@ extern crate scraper;
 extern crate url;
 extern crate dotenv;
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::error::Error;
 use std::io::Cursor;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
@@ -99,8 +99,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let url = build_url(&args.query, args.paging)?;
 
-    let mut seen_titles = HashSet::new();
+    let mut seen_links = HashSet::new();
+    let mut link_order = VecDeque::new();
     const DEFAULT_WIDTH: usize = 100;
+    const MAX_CAPACITY: usize = 100;
 
     while running.load(Ordering::SeqCst) {
         let resp = reqwest::blocking::get(&url)?;
@@ -108,8 +110,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         let channel = Channel::read_from(text.as_bytes())?;
 
         for item in channel.items() {
-            let title = item.title().unwrap_or_default().to_string();
-            if seen_titles.insert(title.clone()) {
+            let link = item.link().unwrap_or_default().to_string();
+
+            if seen_links.insert(link.clone()) {
+                link_order.push_back(link);
+
+                if seen_links.len() > MAX_CAPACITY {
+                    if let Some(oldest_link) = link_order.pop_front() {
+                        seen_links.remove(&oldest_link);
+                    }
+                }
+
                 let job = parse_job(item)?;
                 println!("Title: {}", job.title);
                 println!("Description: {}", body_to_text(&job.description, DEFAULT_WIDTH));
