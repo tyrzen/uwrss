@@ -57,3 +57,9 @@ Run the program using command-line flags:
 ```shell
 cargo run --release -- --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --email 'your.email@example.com' --password 'your app password' --recipient 'recipient.email@example.com'
 ```
+
+After building the project, you can run the compiled binary directly from the `target/release` directory:
+
+```shell
+./target/release/uwrss --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --email 'your.email@example.com' --password 'yourpassword' --recipient 'recipient.email@example.com'
+```
