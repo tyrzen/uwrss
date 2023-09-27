@@ -29,7 +29,7 @@ struct Config {
     #[clap(long, env = "INTERVAL", value_parser = | arg: & str | -> Result < std::time::Duration, std::num::ParseIntError > {Ok(std::time::Duration::from_secs(arg.parse() ?))})]
     interval: std::time::Duration,
 
-    #[clap(long, env = "PAGING", default_value_t = 1)]
+    #[clap(long, env = "PAGING", default_value_t = 10)]
     paging: usize,
 
     #[clap(long, env = "QUERY", required = true)]

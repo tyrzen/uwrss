@@ -38,7 +38,7 @@ SMTP_PASSWORD="yourpassword"
 SMTP_PORT=465
 RECIPIENT="recipient.email@example.com"
 QUERY='title:(("Project manager") OR ("project management"))'
-PAGING=1
+PAGING=10
 INTERVAL=1
 ```
 
