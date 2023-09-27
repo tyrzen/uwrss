@@ -36,10 +36,10 @@ SMTP_SERVER="smtp.googlemail.com"
 SMTP_USERNAME="your.email@example.com"
 SMTP_PASSWORD="yourpassword"
 SMTP_PORT=465
-RECIPIENT="recipient.email@example.com"
-QUERY='title:(("Project manager") OR ("project management"))'
-PAGING=10
-INTERVAL=1
+RECIPIENT="recipient1.email@example.com, recipient2.email@example.com"
+QUERY="title:((/"Project manager/") OR (/"project management/"))"
+PAGING=15
+INTERVAL=15
 ```
 
 ## Build
