@@ -25,12 +25,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         r.store(false, Ordering::SeqCst);
         println!("shutting down");
     })?;
+    println!("{}", cfg.query);
 
-    let mut first_run = cfg.first_run;
+    let mut first_run: bool = cfg.first_run;
     while running.load(Ordering::SeqCst) {
         if let Ok(new_jobs) = job_manager.fetch_new_jobs() {
-            if !first_run { continue; };
-            first_run = true;
+            if first_run == false {
+                first_run = true;
+                continue;
+            };
+
             for job in new_jobs {
                 job_manager.display(&job);
                 if let Err(err) = email_sender.send_email(&job, cfg.recipient.clone()) {
