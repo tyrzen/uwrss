@@ -8,7 +8,7 @@ pub struct Config {
     #[clap(long, env = "INTERVAL", value_parser = parse_duration)]
     pub interval: Duration,
 
-    #[clap(long, env = "PAGING", default_value_t = 1)]
+    #[clap(long, env = "PAGING", default_value_t = 25)]
     pub paging: usize,
 
     #[clap(long, env = "QUERY", required = true)]

@@ -2,32 +2,28 @@ use lettre::{Message, SmtpTransport, Transport, transport::smtp::authentication:
 use lettre::message::header::To;
 use lettre::message::{Mailboxes, SinglePart};
 use lettre::transport::smtp::response::Response;
-use std::error::Error;
 
-use crate::config::Config;
 use crate::job::JobListing;
 
 pub struct EmailSender {
-    smtp_server: String,
-    smtp_port: u16,
-    smtp_username: String,
-    smtp_password: String,
+    client: SmtpTransport,
 }
 
 impl EmailSender {
-    pub fn new(config: &Config) -> Self {
-        Self {
-            smtp_server: config.smtp_server.clone(),
-            smtp_port: config.smtp_port,
-            smtp_username: config.smtp_username.clone(),
-            smtp_password: config.smtp_password.clone(),
-        }
+    pub fn new(smtp_server: String, smtp_port: u16, smtp_username: String, smtp_password: String) -> Result<Self, Box<dyn std::error::Error>> {
+        let creds = Credentials::new(smtp_username.clone(), smtp_password.clone());
+        let client = SmtpTransport::relay(&smtp_server)?
+            .port(smtp_port)
+            .credentials(creds)
+            .build();
+
+        return Ok(Self { client });
     }
 
-    pub fn send_email(&self, job: &JobListing, recipient: String) -> Result<Response, Box<dyn Error>> {
+    pub fn send_email(&self, job: &JobListing, from: String, recipient: String) -> Result<Response, Box<dyn std::error::Error>> {
         let tos: Mailboxes = recipient.parse()?;
         let header: To = tos.into();
-        let from = format!("upwork rss<{}>", self.smtp_username).parse()?;
+        let from = format!("upwork rss<{}>", from).parse()?;
         let body = job.description.clone();
 
         let email = Message::builder()
@@ -36,13 +32,7 @@ impl EmailSender {
             .subject(job.title.clone())
             .singlepart(SinglePart::html(body))?;
 
-        let creds = Credentials::new(self.smtp_username.clone(), self.smtp_password.clone());
 
-        let mailer = SmtpTransport::relay(&self.smtp_server)?
-            .port(self.smtp_port)
-            .credentials(creds)
-            .build();
-
-        Ok(mailer.send(&email)?)
+        Ok(self.client.send(&email)?)
     }
 }

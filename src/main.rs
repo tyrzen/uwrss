@@ -1,16 +1,20 @@
+extern crate tokio;
+
 mod config;
 mod job;
 mod email;
 
+
 use clap::Parser;
 
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
-
     let cfg = config::Config::parse();
-    let email_sender = email::EmailSender::new(&cfg);
-    let mut job_manager = job::JobManager::new(&cfg.query, cfg.paging);
+
+    let email_sender = email::EmailSender::new(cfg.smtp_server.clone(), cfg.smtp_port, cfg.smtp_username.clone(), cfg.smtp_password.clone())?;
+    let mut job_manager = job::JobManager::new(&cfg.query, cfg.paging)?;
 
     let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
     let r = running.clone();
@@ -19,24 +23,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         r.store(false, std::sync::atomic::Ordering::SeqCst);
         println!("shutting down");
     })?;
-    println!("{}", cfg.query);
+    println!("QUERY: {:?}", cfg.query);
+    println!("{}", "-".repeat(100));
 
-    let mut first_run: bool = cfg.first_run;
     while running.load(std::sync::atomic::Ordering::SeqCst) {
-        if let Ok(new_jobs) = job_manager.fetch_new_jobs() {
-            if first_run == false {
-                first_run = true;
-                continue;
-            };
-
+        if let Ok(new_jobs) = job_manager.fetch_new_jobs().await {
             for job in new_jobs {
-                job_manager.display(&job);
-                if let Err(err) = email_sender.send_email(&job, cfg.recipient.clone()) {
+                if let Err(err) = email_sender.send_email(&job, cfg.smtp_username.clone(), cfg.recipient.clone()) {
                     println!("sending email: {}", err);
                 }
             }
         }
-        std::thread::sleep(cfg.interval);
+
+        tokio::time::sleep(cfg.interval).await;
     }
-    Ok(())
+    return Ok(());
 }

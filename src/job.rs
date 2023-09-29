@@ -1,8 +1,11 @@
-use std::collections::{HashSet, VecDeque};
 use std::io::Cursor;
+use std::time::Duration;
 use rss::{Channel, Item};
 use reqwest;
+use reqwest::Client;
 use url::Url;
+use lru::LruCache;
+use std::num::NonZeroUsize;
 
 #[derive(Debug)]
 pub struct JobListing {
@@ -10,21 +13,42 @@ pub struct JobListing {
     pub description: String,
 }
 
+impl JobListing {
+    pub fn display(&self) {
+        const RENDERING_WIDTH: usize = 100;
+        let body = html2text::from_read(Cursor::new(self.description.clone()), RENDERING_WIDTH);
+        println!("Title: {}", self.title);
+        println!("Description: {}", body);
+        println!("{}", "-".repeat(RENDERING_WIDTH));
+    }
+}
+
 pub struct JobManager {
     query: String,
     paging: usize,
-    seen_links: HashSet<String>,
-    link_order: VecDeque<String>,
+    seen_links: LruCache<String, ()>,
+    client: Client,
+    is_fresh: bool,
 }
 
 impl JobManager {
-    pub fn new(query: &str, paging: usize) -> Self {
-        Self {
+    pub fn new(query: &str, paging: usize) -> Result<Self, Box<dyn std::error::Error>> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(15))
+            .build()?;
+
+        let cap = match NonZeroUsize::new(1000 * paging) {
+            Some(cap) => cap,
+            None => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, "capacity must be a non-zero value"))),
+        };
+
+        return Ok(Self {
             query: query.to_string(),
             paging,
-            seen_links: HashSet::new(),
-            link_order: VecDeque::new(),
-        }
+            seen_links: LruCache::new(cap),
+            client,
+            is_fresh: true,
+        });
     }
 
     fn build_url(&self) -> Result<String, url::ParseError> {
@@ -36,40 +60,43 @@ impl JobManager {
         Ok(base_url.to_string())
     }
 
-    pub fn fetch_new_jobs(&mut self) -> Result<Vec<JobListing>, Box<dyn std::error::Error>> {
+    pub async fn fetch_new_jobs(&mut self) -> Result<Vec<JobListing>, Box<dyn std::error::Error>> {
         let url = self.build_url()?;
         let mut new_jobs = Vec::new();
-        const MAX_CAPACITY: usize = 100;
 
-        if let Ok(resp) = reqwest::blocking::get(&url) {
-            if let Ok(text) = resp.text() {
-                if let Ok(channel) = Channel::read_from(text.as_bytes()) {
-                    for item in channel.items() {
-                        let link = item.link().unwrap_or_default().to_string();
-                        if self.seen_links.insert(link.clone()) {
-                            self.link_order.push_back(link);
-                            if self.seen_links.len() > MAX_CAPACITY {
-                                if let Some(oldest_link) = self.link_order.pop_front() {
-                                    self.seen_links.remove(&oldest_link);
-                                }
-                            }
-                            let job = Self::parse_job(item)?;
-                            new_jobs.push(job);
-                        }
-                    }
-                }
+        let resp = match self.client.get(&url).send().await {
+            Ok(resp) => resp,
+            Err(err) => return Err(Box::new(err)),
+        };
+
+        let text = match resp.text().await {
+            Ok(text) => text,
+            Err(err) => return Err(Box::new(err)),
+        };
+
+        let channel = match Channel::read_from(text.as_bytes()) {
+            Ok(ch) => ch,
+            Err(err) => return Err(Box::new(err)),
+        };
+
+        for item in channel.items() {
+            let link = item.link().unwrap_or_default().to_owned();
+            let title = item.title().unwrap_or_default().to_owned();
+            if self.seen_links.put(title.clone(), ()).is_none() {
+                println!("{}: {}", title, link);
+                let job = Self::parse_job(item)?;
+                new_jobs.push(job);
             }
         }
-        Ok(new_jobs)
+
+        if self.is_fresh {
+            self.is_fresh = false;
+            return Ok(Default::default());
+        }
+
+        return Ok(new_jobs);
     }
 
-    pub fn display(&self, job: &JobListing) {
-        const DEFAULT_WIDTH: usize = 100;
-        let body = html2text::from_read(Cursor::new(job.description.clone()), DEFAULT_WIDTH);
-        println!("Title: {}", job.title);
-        println!("Description: {}", body);
-        println!("{}", "-".repeat(DEFAULT_WIDTH));
-    }
 
     fn parse_job(item: &Item) -> Result<JobListing, Box<dyn std::error::Error>> {
         let desc = scraper::Html::parse_fragment(item.description().unwrap_or_default());
