@@ -6,11 +6,13 @@ use reqwest::Client;
 use url::Url;
 use lru::LruCache;
 use std::num::NonZeroUsize;
+use regex::{Captures, Regex};
 
 #[derive(Debug)]
 pub struct JobListing {
     pub title: String,
     pub description: String,
+    pub country: String,
 }
 
 impl JobListing {
@@ -100,9 +102,17 @@ impl JobManager {
 
     fn parse_job(item: &Item) -> Result<JobListing, Box<dyn std::error::Error>> {
         let desc = scraper::Html::parse_fragment(item.description().unwrap_or_default());
+
+        let re = Regex::new(r"<b>Country</b>:([^<]+)")?;
+        let country = match re.captures(desc.html().as_str()) {
+            Some(c) => { c.get(1).map_or("", |m| m.as_str()).trim().to_string() }
+            None => String::new()
+        };
+
         Ok(JobListing {
             title: item.title().unwrap_or_default().to_string(),
             description: desc.html(),
+            country,
         })
     }
 }

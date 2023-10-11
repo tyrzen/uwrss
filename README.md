@@ -2,8 +2,7 @@
 
 ## About
 
-This program is designed to fetch job listings from upwork based on a query and send the results to a specified
-email address.
+This app is designed to fetch job listings from Upwork RSS based on a query and send the results to a specified email address.
 
 ## Features
 
@@ -58,7 +57,7 @@ Run the program using command-line flags:
 cargo run --release -- --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --smtp-username 'your.email@example.com' --smtp-password 'your app password' --recipient 'recipient.email@example.com'
 ```
 
-After building the project, you can run the compiled binary directly from the `target/release` directory:
+After building the project, you can run the compiled binary using flags:
 
 ```shell
 ./target/release/uwrss --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --smtp-username 'your.email@example.com' --smtp-password 'yourpassword' --recipient 'recipient.email@example.com'
