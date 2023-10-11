@@ -39,6 +39,7 @@ RECIPIENT="recipient1.email@example.com, recipient2.email@example.com"
 QUERY="title:((/"Project manager/") OR (/"project management/"))"
 PAGING=15
 INTERVAL=15
+INCLUDE_COUNTRIES="US UK"
 ```
 
 ## Build
@@ -54,11 +55,5 @@ cargo build --release
 Run the program using command-line flags:
 
 ```shell
-cargo run --release -- --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --smtp-username 'your.email@example.com' --smtp-password 'your app password' --recipient 'recipient.email@example.com'
-```
-
-After building the project, you can run the compiled binary using flags:
-
-```shell
-./target/release/uwrss --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --smtp-username 'your.email@example.com' --smtp-password 'yourpassword' --recipient 'recipient.email@example.com'
+cargo run --release -- --interval 15 --query 'your-query' --smtp-server 'smtp.googlemail.com' --smtp-port 465 --smtp-username 'your.email@example.com' --smtp-password 'your app password' --recipient 'recipient.email@example.com' --include-countries 'US UK UA'
 ```
