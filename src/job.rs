@@ -1,12 +1,11 @@
-use std::io::Cursor;
-use std::time::Duration;
-use rss::{Channel, Item};
+use std::io;
+use std::time;
+use rss;
 use reqwest;
-use reqwest::Client;
-use url::Url;
-use lru::LruCache;
-use std::num::NonZeroUsize;
-use regex::{Captures, Regex};
+use url;
+use lru;
+use std::num;
+use regex;
 
 #[derive(Debug)]
 pub struct JobListing {
@@ -18,7 +17,7 @@ pub struct JobListing {
 impl JobListing {
     pub fn display(&self) {
         const RENDERING_WIDTH: usize = 100;
-        let body = html2text::from_read(Cursor::new(self.description.clone()), RENDERING_WIDTH);
+        let body = html2text::from_read(io::Cursor::new(self.description.clone()), RENDERING_WIDTH);
         println!("Title: {}", self.title);
         println!("Description: {}", body);
         println!("{}", "-".repeat(RENDERING_WIDTH));
@@ -28,33 +27,33 @@ impl JobListing {
 pub struct JobManager {
     query: String,
     paging: usize,
-    seen_links: LruCache<String, ()>,
-    client: Client,
+    seen_links: lru::LruCache<String, ()>,
+    client: reqwest::Client,
     is_fresh: bool,
 }
 
 impl JobManager {
     pub fn new(query: &str, paging: usize) -> Result<Self, Box<dyn std::error::Error>> {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(15))
+        let client = reqwest::Client::builder()
+            .timeout(time::Duration::from_secs(15))
             .build()?;
 
-        let cap = match NonZeroUsize::new(1000 * paging) {
+        let cap = match num::NonZeroUsize::new(1000 * paging) {
             Some(cap) => cap,
-            None => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, "capacity must be a non-zero value"))),
+            None => return Err(Box::new(io::Error::new(io::ErrorKind::InvalidInput, "capacity must be a non-zero value"))),
         };
 
         return Ok(Self {
             query: query.to_string(),
-            paging,
-            seen_links: LruCache::new(cap),
-            client,
+            paging: paging,
+            seen_links: lru::LruCache::new(cap),
+            client: client,
             is_fresh: true,
         });
     }
 
     fn build_url(&self) -> Result<String, url::ParseError> {
-        let mut base_url = Url::parse("https://www.upwork.com/ab/feed/jobs/rss")?;
+        let mut base_url = url::Url::parse("https://www.upwork.com/ab/feed/jobs/rss")?;
         base_url.query_pairs_mut()
             .append_pair("q", &self.query)
             .append_pair("sort", "recency")
@@ -76,7 +75,7 @@ impl JobManager {
             Err(err) => return Err(Box::new(err)),
         };
 
-        let channel = match Channel::read_from(text.as_bytes()) {
+        let channel = match rss::Channel::read_from(text.as_bytes()) {
             Ok(ch) => ch,
             Err(err) => return Err(Box::new(err)),
         };
@@ -100,10 +99,10 @@ impl JobManager {
     }
 
 
-    fn parse_job(item: &Item) -> Result<JobListing, Box<dyn std::error::Error>> {
+    fn parse_job(item: &rss::Item) -> Result<JobListing, Box<dyn std::error::Error>> {
         let desc = scraper::Html::parse_fragment(item.description().unwrap_or_default());
 
-        let re = Regex::new(r"<b>Country</b>:([^<]+)")?;
+        let re = regex::Regex::new(r"<b>Country</b>:([^<]+)")?;
         let country = match re.captures(desc.html().as_str()) {
             Some(c) => { c.get(1).map_or("", |m| m.as_str()).trim().to_string() }
             None => String::new()
@@ -112,7 +111,7 @@ impl JobManager {
         Ok(JobListing {
             title: item.title().unwrap_or_default().to_string(),
             description: desc.html(),
-            country,
+            country: country,
         })
     }
 }

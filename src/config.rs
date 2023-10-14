@@ -2,15 +2,15 @@ extern crate rust_iso3166;
 extern crate anyhow;
 
 use clap::Parser;
-use std::num::ParseIntError;
-use std::time::Duration;
+use std::num;
+use std::time;
 use anyhow::Result;
 
 #[derive(Parser, Debug)]
 #[clap(version = "0.1.0", about = "Displays Upwork jobs based on query")]
 pub struct Config {
     #[clap(long, env = "INTERVAL", value_parser = parse_duration)]
-    pub interval: Duration,
+    pub interval: time::Duration,
 
     #[clap(long, env = "PAGING", default_value_t = 25)]
     pub paging: usize,
@@ -40,8 +40,8 @@ pub struct Config {
     pub include_countries: std::vec::Vec<String>,
 }
 
-fn parse_duration(arg: &str) -> Result<Duration, ParseIntError> {
-    Ok(Duration::from_secs(arg.parse()?))
+fn parse_duration(arg: &str) -> Result<time::Duration, num::ParseIntError> {
+    Ok(time::Duration::from_secs(arg.parse()?))
 }
 
 fn parse_countries(arg: &str) -> Result<Vec<String>, anyhow::Error> {

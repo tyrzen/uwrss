@@ -1,18 +1,18 @@
-use lettre::{Message, SmtpTransport, Transport, transport::smtp::authentication::Credentials};
-use lettre::message::header::To;
-use lettre::message::{Mailboxes, SinglePart};
-use lettre::transport::smtp::response::Response;
-
-use crate::job::JobListing;
+use lettre::Transport;
+use lettre::message;
+use lettre::message::header;
+use lettre::transport::smtp::authentication;
+use lettre::transport::smtp::response;
+use crate::job;
 
 pub struct EmailSender {
-    client: SmtpTransport,
+    client: lettre::SmtpTransport,
 }
 
 impl EmailSender {
     pub fn new(smtp_server: String, smtp_port: u16, smtp_username: String, smtp_password: String) -> Result<Self, Box<dyn std::error::Error>> {
-        let creds = Credentials::new(smtp_username.clone(), smtp_password.clone());
-        let client = SmtpTransport::relay(&smtp_server)?
+        let creds = authentication::Credentials::new(smtp_username.clone(), smtp_password.clone());
+        let client = lettre::SmtpTransport::relay(&smtp_server)?
             .port(smtp_port)
             .credentials(creds)
             .build();
@@ -20,18 +20,17 @@ impl EmailSender {
         return Ok(Self { client });
     }
 
-    pub fn send_email(&self, job: &JobListing, from: String, recipient: String) -> Result<Response, Box<dyn std::error::Error>> {
-        let tos: Mailboxes = recipient.parse()?;
-        let header: To = tos.into();
+    pub fn send_email(&self, job: &job::JobListing, from: String, recipient: String) -> Result<response::Response, Box<dyn std::error::Error>> {
+        let tos: message::Mailboxes = recipient.parse()?;
+        let header: header::To = tos.into();
         let from = format!("upwork rss<{}>", from).parse()?;
         let body = job.description.clone();
 
-        let email = Message::builder()
+        let email = lettre::Message::builder()
             .mailbox(header)
             .from(from)
             .subject(job.title.clone())
-            .singlepart(SinglePart::html(body))?;
-
+            .singlepart(message::SinglePart::html(body))?;
 
         Ok(self.client.send(&email)?)
     }
