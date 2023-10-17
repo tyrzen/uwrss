@@ -22,3 +22,7 @@ lru = { version = "0.11.1", features = [] }
 rust_iso3166 = "0.1.11"
 anyhow = "1.0.75"
 regex = "1.10.0"
+slog = "2.7.0"
+slog-async = "2.8.0"
+slog-term = "2.9.0"
+slog-json = "2.6.1"

@@ -1,8 +1,5 @@
-use lettre::Transport;
-use lettre::message;
-use lettre::message::header;
-use lettre::transport::smtp::authentication;
-use lettre::transport::smtp::response;
+use std::error;
+use lettre::{Transport, message::{self, header}, transport::smtp::{response, authentication}};
 use crate::job;
 
 pub struct EmailSender {
@@ -10,7 +7,7 @@ pub struct EmailSender {
 }
 
 impl EmailSender {
-    pub fn new(smtp_server: String, smtp_port: u16, smtp_username: String, smtp_password: String) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(smtp_server: String, smtp_port: u16, smtp_username: String, smtp_password: String) -> Result<Self, Box<dyn error::Error>> {
         let creds = authentication::Credentials::new(smtp_username.clone(), smtp_password.clone());
         let client = lettre::SmtpTransport::relay(&smtp_server)?
             .port(smtp_port)
@@ -20,7 +17,7 @@ impl EmailSender {
         return Ok(Self { client });
     }
 
-    pub fn send_email(&self, job: &job::JobListing, from: String, recipient: String) -> Result<response::Response, Box<dyn std::error::Error>> {
+    pub fn send_email(&self, job: &job::JobListing, from: String, recipient: String) -> Result<response::Response, Box<dyn error::Error>> {
         let tos: message::Mailboxes = recipient.parse()?;
         let header: header::To = tos.into();
         let from = format!("upwork rss<{}>", from).parse()?;

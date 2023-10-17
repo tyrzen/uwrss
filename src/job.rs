@@ -1,10 +1,8 @@
-use std::io;
-use std::time;
+use std::{io, time, num};
 use rss;
 use reqwest;
 use url;
 use lru;
-use std::num;
 use regex;
 
 #[derive(Debug)]

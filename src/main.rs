@@ -1,37 +1,49 @@
-extern crate tokio;
+use std::error;
+use std::sync::{self, atomic};
 
+use clap::Parser;
+use slog::{Drain, error, info, o, warn};
+use slog_term;
+use tokio;
+
+#[macro_use]
 mod config;
 mod job;
 mod email;
 
-use clap::Parser;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn error::Error>> {
     dotenv::dotenv().ok();
     let cfg = config::Config::parse();
+
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::CompactFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+    let log = slog::Logger::root(drain, o!());
 
     let email_sender = email::EmailSender::new(cfg.smtp_server.clone(), cfg.smtp_port, cfg.smtp_username.clone(), cfg.smtp_password.clone())?;
     let mut job_manager = job::JobManager::new(&cfg.query, cfg.paging)?;
 
-    let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let running = sync::Arc::new(atomic::AtomicBool::new(true));
     let r = running.clone();
 
-
+    let ctrlc_log = log.clone();
     ctrlc::set_handler(move || {
-        r.store(false, std::sync::atomic::Ordering::SeqCst);
-        println!("shutting down");
+        r.store(false, atomic::Ordering::SeqCst);
+        warn!(ctrlc_log, "CTRL-C received");
     })?;
-    println!("QUERY: {:?}", cfg.query);
-    println!("INCLUDE_COUNTRIES: {:?}", cfg.include_countries);
-    println!("{}", "-".repeat(100));
 
-    while running.load(std::sync::atomic::Ordering::SeqCst) {
+    info!(log, "Applied"; "query" => cfg.query);
+    info!(log, "Included"; "countries" => format!("{:?}", &cfg.include_countries));
+    info!(log, "{}", "-".repeat(100));
+
+    while running.load(atomic::Ordering::SeqCst) {
         if let Ok(new_jobs) = job_manager.fetch_new_jobs().await {
             for job in new_jobs {
                 if cfg.include_countries.contains(&job.country) {
                     if let Err(err) = email_sender.send_email(&job, cfg.smtp_username.clone(), cfg.recipient.clone()) {
-                        println!("sending email: {}", err);
+                        error!(log, "sending email"; "error" => format!("{}", err));
                     }
                 }
             }
