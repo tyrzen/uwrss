@@ -1,4 +1,4 @@
-use std::{io, time, num};
+use std::{time, num, error};
 use rss;
 use reqwest;
 use url;
@@ -12,16 +12,6 @@ pub struct JobListing {
     pub country: String,
 }
 
-impl JobListing {
-    pub fn display(&self) {
-        const RENDERING_WIDTH: usize = 100;
-        let body = html2text::from_read(io::Cursor::new(self.description.clone()), RENDERING_WIDTH);
-        println!("Title: {}", self.title);
-        println!("Description: {}", body);
-        println!("{}", "-".repeat(RENDERING_WIDTH));
-    }
-}
-
 pub struct JobManager {
     query: String,
     paging: usize,
@@ -31,15 +21,13 @@ pub struct JobManager {
 }
 
 impl JobManager {
-    pub fn new(query: &str, paging: usize) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(query: &str, paging: usize) -> Result<Self, Box<dyn error::Error>> {
         let client = reqwest::Client::builder()
             .timeout(time::Duration::from_secs(15))
             .build()?;
 
-        let cap = match num::NonZeroUsize::new(1000 * paging) {
-            Some(cap) => cap,
-            None => return Err(Box::new(io::Error::new(io::ErrorKind::InvalidInput, "capacity must be a non-zero value"))),
-        };
+        let cap = num::NonZeroUsize::new(1000 * paging)
+            .ok_or("capacity must be a non-zero value")?;
 
         return Ok(Self {
             query: query.to_string(),
@@ -59,30 +47,17 @@ impl JobManager {
         Ok(base_url.to_string())
     }
 
-    pub async fn fetch_new_jobs(&mut self) -> Result<Vec<JobListing>, Box<dyn std::error::Error>> {
+    pub async fn fetch_new_jobs(&mut self) -> Result<Vec<JobListing>, Box<dyn error::Error>> {
         let url = self.build_url()?;
         let mut new_jobs = Vec::new();
 
-        let resp = match self.client.get(&url).send().await {
-            Ok(resp) => resp,
-            Err(err) => return Err(Box::new(err)),
-        };
-
-        let text = match resp.text().await {
-            Ok(text) => text,
-            Err(err) => return Err(Box::new(err)),
-        };
-
-        let channel = match rss::Channel::read_from(text.as_bytes()) {
-            Ok(ch) => ch,
-            Err(err) => return Err(Box::new(err)),
-        };
+        let resp = self.client.get(&url).send().await?;
+        let text = resp.text().await?;
+        let channel = rss::Channel::read_from(text.as_bytes())?;
 
         for item in channel.items() {
             let link = item.link().unwrap_or_default().to_owned();
-            let title = item.title().unwrap_or_default().to_owned();
-            if self.seen_links.put(title.clone(), ()).is_none() {
-                println!("{}: {}", title, link);
+            if self.seen_links.put(link, ()).is_none() {
                 let job = Self::parse_job(item)?;
                 new_jobs.push(job);
             }
@@ -97,7 +72,7 @@ impl JobManager {
     }
 
 
-    fn parse_job(item: &rss::Item) -> Result<JobListing, Box<dyn std::error::Error>> {
+    fn parse_job(item: &rss::Item) -> Result<JobListing, Box<dyn error::Error>> {
         let desc = scraper::Html::parse_fragment(item.description().unwrap_or_default());
 
         let re = regex::Regex::new(r"<b>Country</b>:([^<]+)")?;
