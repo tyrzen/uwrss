@@ -40,17 +40,19 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
 
     while running.load(atomic::Ordering::SeqCst) {
         match job_manager.fetch_new_jobs().await {
+            Err(err) => { error!(log, "fetching new jobs"; "error" => format!("{}", err)) }
+
             Ok(new_jobs) => {
                 for job in new_jobs {
-                    if cfg.include_countries.contains(&job.country)  {
+                    if cfg.include_countries.contains(&job.country) {
                         match email_sender.send_email(&job, cfg.smtp_username.clone(), cfg.recipient.clone()) {
-                            Ok(_) => { info!(log, "sending email"; "job" => format!("{:?}", &job)) }
                             Err(err) => { error!(log, "sending email"; "error" => format!("{}", err)) }
+
+                            Ok(_) => { info!(log, "sending email"; "job" => format!("{:?}", &job)) }
                         }
                     }
                 }
             }
-            Err(err) => { error!(log, "fetching new jobs"; "error" => format!("{}", err)) }
         };
 
         tokio::time::sleep(cfg.interval).await;
