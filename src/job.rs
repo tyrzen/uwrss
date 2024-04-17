@@ -31,9 +31,9 @@ impl JobManager {
 
         return Ok(Self {
             query: query.to_string(),
-            paging: paging,
+            paging,
             seen_links: lru::LruCache::new(cap),
-            client: client,
+            client,
             is_fresh: true,
         });
     }
@@ -84,7 +84,7 @@ impl JobManager {
         Ok(JobListing {
             title: item.title().unwrap_or_default().to_string(),
             description: desc.html(),
-            country: country,
+            country,
         })
     }
 }

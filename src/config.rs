@@ -35,17 +35,15 @@ pub struct Config {
 
     #[clap(long, env = "FIRST_RUN", default_value_t = false)]
     pub first_run: bool,
-
-    #[clap(long, env = "INCLUDE_COUNTRIES", num_args = 1.., value_parser = parse_countries)]
-    pub include_countries: std::vec::Vec<String>,
 }
 
 fn parse_duration(arg: &str) -> Result<time::Duration, num::ParseIntError> {
     Ok(time::Duration::from_secs(arg.parse()?))
 }
 
-fn parse_countries(arg: &str) -> Result<Vec<String>, anyhow::Error> {
-    arg.split_whitespace()
+fn _parse_countries(arg: &str) -> Result<Vec<String>, anyhow::Error> {
+    arg
+        .split_whitespace()
         .map(|s| {
             let code = s.trim().to_uppercase();
             rust_iso3166::from_alpha2(&code)

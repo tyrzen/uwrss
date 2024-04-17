@@ -17,7 +17,7 @@ impl EmailSender {
         return Ok(Self { client });
     }
 
-    pub fn send_email(&self, job: &job::JobListing, from: String, recipient: String) -> Result<response::Response, Box<dyn error::Error>> {
+    pub fn send_email(&self, job: &job::JobListing, from: &str, recipient: &str) -> Result<response::Response, Box<dyn error::Error>> {
         let tos: message::Mailboxes = recipient.parse()?;
         let header: header::To = tos.into();
         let from = format!("upwork rss<{}>", from).parse()?;

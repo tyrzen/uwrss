@@ -35,21 +35,17 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
     })?;
 
     info!(log, "Applied"; "query" => cfg.query);
-    info!(log, "Included"; "countries" => format!("{:?}", &cfg.include_countries));
     info!(log, "{}", "-".repeat(100));
 
     while running.load(atomic::Ordering::SeqCst) {
         match job_manager.fetch_new_jobs().await {
-            Err(err) => { error!(log, "fetching new jobs"; "error" => format!("{}", err)) }
+            Err(err) => { error!(log, "Fetching new jobs"; "error" => format!("{}", err)) }
 
             Ok(new_jobs) => {
                 for job in new_jobs {
-                    if cfg.include_countries.contains(&job.country) {
-                        match email_sender.send_email(&job, cfg.smtp_username.clone(), cfg.recipient.clone()) {
-                            Err(err) => { error!(log, "sending email"; "error" => format!("{}", err)) }
-
-                            Ok(_) => { info!(log, "sending email"; "job" => format!("{:?}", &job)) }
-                        }
+                    match email_sender.send_email(&job, &cfg.smtp_username, &cfg.recipient) {
+                        Err(err) => { error!(log, "Sending email"; "error" => format!("{}", err)) }
+                        Ok(_) => { info!(log, "Sending email"; "job" =>  &job.title) }
                     }
                 }
             }
